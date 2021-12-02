@@ -7,13 +7,10 @@ import face_recognition
 import numpy as np
 from io import BytesIO
 import random
-from time import time
-import librosa
-import io
-import soundfile as sf
-from scipy.io.wavfile import read, write
+import sqlite3
 
 bot = telebot.TeleBot("2147259007:AAEVsREyP6oCv5-YCxIyk45DyoTtW-4ui1s", parse_mode=None)
+
 ORDINATA = ['Ars longa, vita brevis.',
             'Per aspera ad astra.',
             'Usus est optimus magister.',
@@ -21,6 +18,7 @@ ORDINATA = ['Ars longa, vita brevis.',
             'Alea jacta est.',
             'Non ducor, duco.',
             'Etiam si omnes, ego non.']
+
 
 def show_faces(face_locations, image, message):
     for face_location in face_locations:
@@ -45,6 +43,11 @@ def get_my_dir(follow_symlinks=True):
 
 try:
     os.mkdir(get_my_dir() + os.path.sep + 'photos')
+except FileExistsError:
+    pass
+
+try:
+    os.mkdir(get_my_dir() + os.path.sep + 'voice')
 except FileExistsError:
     pass
 
@@ -75,21 +78,34 @@ def handle_photo(message):
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
     try:
-        bot.reply_to(message, "Сохраню это на сервере и попрошу кого-нибудь перевести, ведь я понимаю только латинский язык. " + ORDINATA[random.randint(0, len(ORDINATA) - 1)])
+        con = sqlite3.connect('chatvoices.db')
+        cur = con.cursor()
+        try:
+            cur.execute('''CREATE TABLE voisemessages
+                           (uid integer, voicemessage text)''')
+        except sqlite3.OperationalError:
+            pass
+        bot.reply_to(message, "Сохраню это на сервере и попрошу кого-нибудь перевести, ведь я понимаю только латинский "
+                              "язык. " + ORDINATA[random.randint(0, len(ORDINATA) - 1)])
         file_info = bot.get_file(message.voice.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
 
-        #FIXME
-        #signal_gm = np.frombuffer(downloaded_file, dtype='float64')
-        #sf.write('new_file.wav', signal_gm, 16000)
-        #FIXME
-
         try:
-            os.mkdir(get_my_dir() + os.path.sep + str(message.chat.id))
+            os.mkdir(get_my_dir() + os.path.sep + 'voice' + os.path.sep + str(message.chat.id), mode=777)
         except FileExistsError:
             pass
-        with open(f'{message.chat.id}_{int(time())}.wav', 'wb') as new_file:
+        cur.execute(f'SELECT * FROM voisemessages WHERE uid={message.chat.id}')
+        results = cur.fetchall()
+        print(message.chat.id)
+        print(len(results))
+        src = get_my_dir() + os.path.sep + 'voice' + os.path.sep + str(message.chat.id) + os.path.sep + f'audio_message_{len(results)}.wav '
+        with open(src, 'wb') as new_file:
             new_file.write(downloaded_file)
+        cur.execute(
+            f"INSERT INTO voisemessages (uid, voicemessage) VALUES ({message.chat.id}, 'audio_message_{len(results)}.wav ')")
+        con.commit()
+        for row in cur.execute('SELECT * FROM voisemessages'):
+            print(row)
     except Exception as e:
         bot.reply_to(message, str(e))
 
