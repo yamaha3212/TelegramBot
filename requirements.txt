@@ -1,0 +1,3 @@
+face-recognition==1.3.0
+Pillow==8.4.0
+TelegramBotAPI==4.2.0
