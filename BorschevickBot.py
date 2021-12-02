@@ -96,16 +96,12 @@ def handle_voice(message):
             pass
         cur.execute(f'SELECT * FROM voisemessages WHERE uid={message.chat.id}')
         results = cur.fetchall()
-        print(message.chat.id)
-        print(len(results))
         src = get_my_dir() + os.path.sep + 'voice' + os.path.sep + str(message.chat.id) + os.path.sep + f'audio_message_{len(results)}.wav '
         with open(src, 'wb') as new_file:
             new_file.write(downloaded_file)
         cur.execute(
             f"INSERT INTO voisemessages (uid, voicemessage) VALUES ({message.chat.id}, 'audio_message_{len(results)}.wav ')")
         con.commit()
-        for row in cur.execute('SELECT * FROM voisemessages'):
-            print(row)
     except Exception as e:
         bot.reply_to(message, str(e))
 
